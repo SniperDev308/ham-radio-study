@@ -149,6 +149,24 @@ h3{font-size:14px;font-weight:600;color:var(--muted2)}
 .stats-total{display:flex;gap:16px;margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border)}
 .stats-total span{font-size:13px;color:var(--muted2)}
 .stats-total strong{color:var(--text)}
+/* VOICE */
+.voice-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:13px;color:var(--muted2);font-family:inherit;transition:all .15s}
+.voice-btn:hover{background:var(--surface2);color:var(--text)}
+.voice-btn.on{border-color:var(--green);color:var(--green);background:rgba(34,197,94,.08)}
+.voice-btn .v-dot{width:8px;height:8px;border-radius:50%;background:var(--muted2);transition:background .15s}
+.voice-btn.on .v-dot{background:var(--green);animation:pulse-dot 1.5s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+.voice-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem}
+.speaking-badge{font-size:11px;color:var(--accent);display:none;align-items:center;gap:5px}
+.speaking-badge.active{display:flex}
+.speak-wave{display:flex;gap:2px;align-items:center}
+.speak-wave span{display:block;width:3px;border-radius:2px;background:var(--accent);animation:wave 0.8s ease-in-out infinite}
+.speak-wave span:nth-child(1){height:6px;animation-delay:0s}
+.speak-wave span:nth-child(2){height:12px;animation-delay:.1s}
+.speak-wave span:nth-child(3){height:8px;animation-delay:.2s}
+.speak-wave span:nth-child(4){height:14px;animation-delay:.15s}
+.speak-wave span:nth-child(5){height:6px;animation-delay:.25s}
+@keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.8)}}
 </style>
 </head>
 <body>
@@ -179,7 +197,18 @@ h3{font-size:14px;font-weight:600;color:var(--muted2)}
 </div>
 
 <div id="sec-flashcard" class="section">
-  <button class="back-menu" onclick="showTab('resumen')">← Menú principal</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem">
+    <button class="back-menu" style="margin:0" onclick="showTab('resumen');stopSpeaking()">← Menú principal</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="speaking-badge" id="fc-speaking-badge">
+        <div class="speak-wave"><span></span><span></span><span></span><span></span><span></span></div>
+        Leyendo...
+      </div>
+      <button class="voice-btn" id="fc-voice-btn" onclick="toggleFCVoice()">
+        <span class="v-dot"></span> Voz
+      </button>
+    </div>
+  </div>
   <div class="fc-bar">
     <select id="fc-filter" onchange="initFC()">
       <option value="all">Todos los subelementos</option>
@@ -232,7 +261,18 @@ h3{font-size:14px;font-weight:600;color:var(--muted2)}
     </div>
   </div>
   <div id="quiz-play" style="display:none">
-    <button class="back-menu" onclick="cancelQuiz()">← Menú principal</button>
+    <div class="voice-bar">
+      <button class="back-menu" style="margin:0" onclick="cancelQuiz()">← Menú principal</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="speaking-badge" id="speaking-badge">
+          <div class="speak-wave"><span></span><span></span><span></span><span></span><span></span></div>
+          Leyendo...
+        </div>
+        <button class="voice-btn" id="voice-btn" onclick="toggleVoice()">
+          <span class="v-dot"></span> Voz
+        </button>
+      </div>
+    </div>
     <div class="pbar"><div class="pfill" id="pfill"></div></div>
     <div class="q-area">
       <div class="q-top">
@@ -346,6 +386,11 @@ function renderFC(){
   document.getElementById('expl-body').style.display='none';
   document.getElementById('cache-note').textContent='';
   document.getElementById('card-inner').classList.remove('flipped');
+  // Lee la pregunta con voz si está activa
+  if(fcVoiceOn){
+    const opts4=['A','B','C','D'].filter(l=>q[l]).map(l=>l+': '+q[l]).join('. ');
+    speakFC(q.question+'. '+opts4);
+  }
 }
 function flipCard(){
   const ci=document.getElementById('card-inner');
@@ -353,6 +398,7 @@ function flipCard(){
   if(ci.classList.contains('flipped'))loadExpl();
 }
 function fcMove(d){
+  stopSpeaking();
   document.getElementById('card-inner').classList.remove('flipped');
   setTimeout(()=>{fcIdx=Math.max(0,Math.min(fcCards.length-1,fcIdx+d));renderFC();},200);
 }
@@ -407,6 +453,11 @@ function showExpl(d){
   const q=fcCards[fcIdx];
   const qShort=(q.question||'').replace(/'/g,' ').substring(0,80);
   el.innerHTML=`<h4>${d.titulo||''}</h4><p>${d.explicacion||''}</p>${fHtml}${d.otras?`<h4>¿Por qué las demás no?</h4><p>${d.otras}</p>`:''}<div class="key-tip"><strong>Para recordar:</strong> ${d.clave||''}</div><button class="deep-btn" onclick="event.stopPropagation();sendPrompt('Explícame más sobre este tema del examen Technician: ${qShort}')">Profundizar ↗</button>`;
+  // Lee la respuesta y explicación con voz al voltear la tarjeta
+  if(fcVoiceOn&&d.explicacion){
+    const textoVoz=`Respuesta correcta: ${q.answer}. ${q[q.answer]}. ${d.titulo}. ${d.explicacion}`;
+    speakFC(textoVoz);
+  }
 }
 
 // ── STATS ──
@@ -442,6 +493,74 @@ function renderStats(){
   document.getElementById('stats-total').innerHTML=`<span>Total respondidas: <strong>${totalT}</strong></span><span>Correctas: <strong style="color:var(--green)">${totalC}</strong></span><span>Incorrectas: <strong style="color:var(--red)">${totalT-totalC}</strong></span><span>Promedio: <strong>${totalT?Math.round(totalC/totalT*100):0}%</strong></span>`;
 }
 function clearStats(){if(confirm('¿Borrar todo el progreso?')){localStorage.removeItem('ham_stats');renderStats();}}
+
+// ── VOZ ──
+let voiceOn=false;
+let fcVoiceOn=false;
+let speaking=false;
+
+function toggleVoice(){
+  voiceOn=!voiceOn;
+  const btn=document.getElementById('voice-btn');
+  btn.classList.toggle('on',voiceOn);
+  btn.innerHTML=`<span class="v-dot"></span> Voz ${voiceOn?'ON':'OFF'}`;
+  if(!voiceOn)stopSpeaking();
+}
+
+function toggleFCVoice(){
+  fcVoiceOn=!fcVoiceOn;
+  const btn=document.getElementById('fc-voice-btn');
+  btn.classList.toggle('on',fcVoiceOn);
+  btn.innerHTML=`<span class="v-dot"></span> Voz ${fcVoiceOn?'ON':'OFF'}`;
+  if(!fcVoiceOn)stopSpeaking();
+  else{
+    // Lee la tarjeta actual si ya hay una
+    const q=fcCards[fcIdx];
+    if(q){
+      const ci=document.getElementById('card-inner');
+      if(!ci.classList.contains('flipped')){
+        speakFC(q.question);
+      }
+    }
+  }
+}
+
+function stopSpeaking(){
+  window.speechSynthesis.cancel();
+  speaking=false;
+  document.querySelectorAll('.speaking-badge').forEach(b=>b.classList.remove('active'));
+}
+
+function getSpanishVoice(){
+  const voices=window.speechSynthesis.getVoices();
+  return voices.find(v=>v.lang==='es-MX')||voices.find(v=>v.lang==='es-US')||voices.find(v=>v.lang.startsWith('es'))||null;
+}
+
+function speakRaw(text,badgeId,onEnd){
+  if(!window.speechSynthesis)return;
+  stopSpeaking();
+  const utt=new SpeechSynthesisUtterance(text);
+  utt.lang='es-MX';utt.rate=0.92;utt.pitch=1;
+  const v=getSpanishVoice();if(v)utt.voice=v;
+  speaking=true;
+  const badge=document.getElementById(badgeId);
+  if(badge)badge.classList.add('active');
+  utt.onend=()=>{
+    speaking=false;
+    if(badge)badge.classList.remove('active');
+    if(onEnd)onEnd();
+  };
+  utt.onerror=()=>{speaking=false;if(badge)badge.classList.remove('active');};
+  // Workaround for Chrome bug that cuts off long utterances
+  window.speechSynthesis.speak(utt);
+  const keepAlive=setInterval(()=>{if(!speaking)clearInterval(keepAlive);else{window.speechSynthesis.pause();window.speechSynthesis.resume();}},10000);
+}
+
+function speak(text,onEnd){if(voiceOn)speakRaw(text,'speaking-badge',onEnd);}
+function speakFC(text,onEnd){if(fcVoiceOn)speakRaw(text,'fc-speaking-badge',onEnd);}
+
+// Preload voices on page load
+if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=()=>{};
 
 // ── QUIZ ──
 function initQuizSetup(){
@@ -482,29 +601,58 @@ function renderQ(){
   });
   document.getElementById('q-fb').style.display='none';
   document.getElementById('q-next').style.display='none';
+  // Lee la pregunta con voz
+  if(voiceOn){
+    const opts4=['A','B','C','D'].filter(l=>q[l]).map(l=>l+': '+q[l]).join('. ');
+    speak(q.question+'. '+opts4);
+  }
 }
 function cancelQuiz(){
+  stopSpeaking();
   document.getElementById('quiz-setup').style.display='block';
   document.getElementById('quiz-play').style.display='none';
   document.getElementById('quiz-result').style.display='none';
   showTab('resumen');
 }
 function selectAns(chosen,btn,q){
+  stopSpeaking();
   document.querySelectorAll('.opt-btn').forEach(b=>b.disabled=true);
   const ok=chosen===q.answer;
   recordAnswer(q.sub,ok);
-  if(ok){btn.classList.add('correct');quizScore++;}
-  else{
+  if(ok){
+    btn.classList.add('correct');quizScore++;
+    if(voiceOn)speak('¡Correcto!');
+  }else{
     btn.classList.add('wrong');
     document.querySelectorAll('.opt-btn').forEach(b=>{if(b.textContent.startsWith(q.answer+'.'))b.classList.add('correct');});
     quizErrors.push({id:q.id,q:q.question,correct:q.answer,ans:q[q.answer],chosen});
+    // Lee la respuesta correcta y obtiene explicación por voz
+    if(voiceOn){
+      const textoIncorrecto=`Incorrecto. La respuesta correcta es ${q.answer}: ${q[q.answer]}.`;
+      // Obtiene explicación breve de la API para leerla
+      getExplForVoice(q).then(expl=>{
+        const full=textoIncorrecto+(expl?' '+expl:'');
+        speak(full);
+      });
+    }
   }
   const fb=document.getElementById('q-fb');
   fb.style.display='block';fb.className='q-fb '+(ok?'ok':'nok');
   fb.textContent=ok?'¡Correcto!':'Incorrecto. La respuesta correcta es '+q.answer+': '+q[q.answer];
   document.getElementById('q-next').style.display='block';
 }
+
+async function getExplForVoice(q){
+  try{
+    const opts=['A','B','C','D'].filter(l=>q[l]).map(l=>l+'. '+q[l]).join('\n');
+    const prompt=`Pregunta del examen Technician FCC (ID: ${q.id}): "${q.question}". Respuesta correcta: ${q.answer}. ${q[q.answer]}. En máximo 2 oraciones cortas y claras, explica POR QUÉ esa es la respuesta correcta. Si hay una fórmula, menciónala en texto plano. Responde solo con el texto de la explicación, sin introducción.`;
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:200,messages:[{role:'user',content:prompt}]})});
+    const data=await r.json();
+    return data.content.filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+  }catch(e){return '';}
+}
 function nextQ(){
+  stopSpeaking();
   quizIdx++;
   if(quizIdx>=quizCards.length)showResult();
   else renderQ();
