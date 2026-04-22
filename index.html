@@ -168,7 +168,27 @@ h3{font-size:14px;font-weight:600;color:var(--muted2)}
 .stats-total{display:flex;gap:16px;margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border)}
 .stats-total span{font-size:13px;color:var(--muted2)}
 .stats-total strong{color:var(--text)}
-/* VOICE */
+/* LANDING */
+.landing-hero{padding:2rem 0 1.5rem;border-bottom:1px solid var(--border);margin-bottom:1.5rem}
+.landing-greeting{font-size:13px;color:var(--accent);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.3rem}
+.landing-title{font-size:26px;font-weight:700;color:var(--text);margin-bottom:.3rem}
+.landing-sub{font-size:13px;color:var(--muted)}
+.landing-modules{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:1.5rem}
+.mod-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;gap:6px}
+.mod-card:hover{border-color:var(--accent);background:var(--surface2)}
+.mod-card .mod-icon{font-size:22px}
+.mod-card .mod-name{font-size:15px;font-weight:600;color:var(--text)}
+.mod-card .mod-desc{font-size:12px;color:var(--muted);line-height:1.4}
+.landing-stats{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;margin-bottom:1.5rem}
+.landing-stats h3{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.8rem}
+.landing-empty{font-size:13px;color:var(--muted);padding:.5rem 0}
+.ls-totals{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid var(--border)}
+.ls-tot-item{display:flex;flex-direction:column;gap:2px}
+.ls-tot-item span{font-size:11px;color:var(--muted)}
+.ls-tot-item strong{font-size:20px;font-weight:700;color:var(--text)}
+.ls-tot-item strong.ok{color:var(--green)}
+.ls-tot-item strong.bad{color:var(--red)}
+
 .voice-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:13px;color:var(--muted2);font-family:inherit;transition:all .15s}
 .voice-btn:hover{background:var(--surface2);color:var(--text)}
 .voice-btn.on{border-color:var(--green);color:var(--green);background:rgba(34,197,94,.08)}
@@ -190,19 +210,65 @@ h3{font-size:14px;font-weight:600;color:var(--muted2)}
 </head>
 <body>
 <div class="app">
+<!-- TOP NAV -->
 <div class="topbar">
   <div>
     <h1>Technician License — FCC</h1>
     <p>Banco oficial 2022–2026 · 410 preguntas · en español</p>
   </div>
   <div class="nav">
-    <button class="active" onclick="showTab('resumen')">Resúmenes</button>
+    <button class="active" onclick="showTab('home')">Inicio</button>
+    <button onclick="showTab('resumen')">Repasar</button>
     <button onclick="showTab('flashcard')">Flashcards</button>
     <button onclick="showTab('quiz')">Quiz</button>
   </div>
 </div>
 
-<div id="sec-resumen" class="section visible">
+<!-- LANDING -->
+<div id="sec-home" class="section visible">
+  <div class="landing-hero">
+    <div class="landing-greeting">¡Hola, Estudiante!</div>
+    <div class="landing-title">¿Listo para estudiar hoy?</div>
+    <div class="landing-sub">Banco oficial FCC 2022–2026 · 410 preguntas · Examen el 30 de junio de 2026</div>
+  </div>
+
+  <!-- Módulos -->
+  <div class="landing-modules">
+    <div class="mod-card" onclick="showTab('resumen')">
+      <div class="mod-icon">📖</div>
+      <div class="mod-name">Repasar</div>
+      <div class="mod-desc">Ve pregunta por pregunta con la respuesta correcta resaltada. Sin presión, sin puntaje.</div>
+    </div>
+    <div class="mod-card" onclick="showTab('flashcard')">
+      <div class="mod-icon">🃏</div>
+      <div class="mod-name">Flashcards</div>
+      <div class="mod-desc">Voltea la tarjeta para ver la respuesta y una explicación detallada con IA.</div>
+    </div>
+    <div class="mod-card" onclick="showTab('quiz')">
+      <div class="mod-icon">✏️</div>
+      <div class="mod-name">Quiz</div>
+      <div class="mod-desc">Pon a prueba tu conocimiento. Se registra tu progreso por subelemento.</div>
+    </div>
+  </div>
+
+  <!-- Estadísticas de progreso -->
+  <div class="landing-stats">
+    <h3>Tu progreso</h3>
+    <div id="ls-empty" class="landing-empty">Aún no has respondido preguntas. ¡Empieza con un quiz o repaso!</div>
+    <div id="ls-content" style="display:none">
+      <div class="ls-totals" id="ls-totals"></div>
+      <div class="stats-grid" id="ls-grid"></div>
+    </div>
+    <div style="margin-top:.8rem;display:flex;gap:8px">
+      <button onclick="showTab('quiz')" class="start-btn" style="font-size:13px;padding:7px 18px">Empezar quiz →</button>
+      <button onclick="clearStats()" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:12px;color:var(--muted);font-family:inherit">Reiniciar progreso</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUBELEMENTOS -->
+<div id="sec-resumen" class="section">
+  <button class="back-menu" onclick="showTab('home')" style="margin-bottom:1rem">← Inicio</button>
   <div id="stats-panel" class="stats-bar" style="display:none">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
       <h3 style="margin:0">Tu progreso</h3>
@@ -363,12 +429,13 @@ let fcCards=[],fcIdx=0,fcCache={};
 let quizCards=[],quizIdx=0,quizScore=0,quizErrors=[],quizSubSel='all';
 
 function showTab(t){
-  ['resumen','flashcard','quiz','repaso'].forEach((s,i)=>{
+  ['home','resumen','flashcard','quiz','repaso'].forEach((s,i)=>{
     document.getElementById('sec-'+s).classList.toggle('visible',s===t);
-    if(i<3)document.querySelectorAll('.nav button')[i].classList.toggle('active',s===t);
+    if(i<4)document.querySelectorAll('.nav button')[i].classList.toggle('active',s===t);
   });
   if(t==='flashcard'&&fcIdx===0&&fcCards.length===0)initFC();
   if(t==='quiz')initQuizSetup();
+  if(t==='home')renderLandingStats();
 }
 
 // ── RESÚMENES ──
@@ -557,10 +624,39 @@ function recordAnswer(sub,correct){
   saveStats(s);
   renderStats();
 }
+function renderLandingStats(){
+  const s=loadStats();
+  const keys=Object.keys(s);
+  const empty=document.getElementById('ls-empty');
+  const content=document.getElementById('ls-content');
+  if(!keys.length){empty.style.display='block';content.style.display='none';return;}
+  empty.style.display='none';content.style.display='block';
+  let totalT=0,totalC=0;
+  keys.forEach(sub=>{totalT+=s[sub].total;totalC+=s[sub].correct;});
+  const pct=totalT?Math.round(totalC/totalT*100):0;
+  const pass=pct>=74;
+  document.getElementById('ls-totals').innerHTML=`
+    <div class="ls-tot-item"><span>Respondidas</span><strong>${totalT}</strong></div>
+    <div class="ls-tot-item"><span>Correctas</span><strong class="ok">${totalC}</strong></div>
+    <div class="ls-tot-item"><span>Incorrectas</span><strong class="bad">${totalT-totalC}</strong></div>
+    <div class="ls-tot-item"><span>Promedio</span><strong class="${pass?'ok':'bad'}">${pct}%</strong></div>
+    <div class="ls-tot-item"><span>Meta</span><strong>74%</strong></div>`;
+  const grid=document.getElementById('ls-grid');grid.innerHTML='';
+  keys.sort().forEach(sub=>{
+    const d=s[sub];
+    const p=d.total?Math.round(d.correct/d.total*100):0;
+    const cls=p>=74?'good':p>=50?'warn':'bad';
+    const pill=document.createElement('div');pill.className='stat-pill';
+    pill.innerHTML=`<div class="s-label">${sub} · ${SUBS[sub]?SUBS[sub].name.split(' ')[0]:''}</div><div class="s-nums">${d.correct}/${d.total} · ${p}%</div><div class="s-bar"><div class="s-fill ${cls}" style="width:${p}%"></div></div>`;
+    grid.appendChild(pill);
+  });
+}
 function renderStats(){
+  // mantiene el panel de stats en sec-resumen también
   const s=loadStats();
   const keys=Object.keys(s);
   const panel=document.getElementById('stats-panel');
+  if(!panel)return;
   if(!keys.length){panel.style.display='none';return;}
   panel.style.display='block';
   const grid=document.getElementById('stats-grid');
@@ -574,9 +670,16 @@ function renderStats(){
     pill.innerHTML=`<div class="s-label">${sub} · ${SUBS[sub]?SUBS[sub].name.split(' ')[0]:''}</div><div class="s-nums">${d.correct}/${d.total} · ${pct}%</div><div class="s-bar"><div class="s-fill ${cls}" style="width:${pct}%"></div></div>`;
     grid.appendChild(pill);
   });
-  document.getElementById('stats-total').innerHTML=`<span>Total respondidas: <strong>${totalT}</strong></span><span>Correctas: <strong style="color:var(--green)">${totalC}</strong></span><span>Incorrectas: <strong style="color:var(--red)">${totalT-totalC}</strong></span><span>Promedio: <strong>${totalT?Math.round(totalC/totalT*100):0}%</strong></span>`;
+  document.getElementById('stats-total').innerHTML=`<span>Total: <strong>${totalT}</strong></span><span>Correctas: <strong style="color:var(--green)">${totalC}</strong></span><span>Incorrectas: <strong style="color:var(--red)">${totalT-totalC}</strong></span><span>Promedio: <strong>${totalT?Math.round(totalC/totalT*100):0}%</strong></span>`;
+  renderLandingStats();
 }
-function clearStats(){if(confirm('¿Borrar todo el progreso?')){localStorage.removeItem('ham_stats');renderStats();}}
+function clearStats(){
+  if(confirm('¿Borrar todo el progreso?')){
+    localStorage.removeItem('ham_stats');
+    renderStats();
+    renderLandingStats();
+  }
+}
 
 // ── VOZ ──
 let voiceOn=false;
@@ -770,6 +873,7 @@ Object.entries(SUBS).forEach(([id,s])=>{const o=document.createElement('option')
 buildGrid();
 initQuizSetup();
 renderStats();
+renderLandingStats();
 </script>
 </body>
 </html>
