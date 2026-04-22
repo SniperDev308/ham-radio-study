@@ -92,6 +92,25 @@ h3{font-size:14px;font-weight:600;color:var(--muted2)}
 .fc-nav .ctr{font-size:13px;color:var(--muted);min-width:60px;text-align:center}
 .cache-note{font-size:11px;color:var(--muted);text-align:center;margin-top:.3rem}
 
+/* REPASO */
+.repaso-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.repaso-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem}
+.repaso-id{font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.05em}
+.repaso-ctr{font-size:12px;color:var(--muted)}
+.repaso-q{font-size:15px;color:var(--text);line-height:1.6;margin-bottom:1rem}
+.repaso-opts{display:flex;flex-direction:column;gap:6px;margin-bottom:1rem}
+.repaso-opt{padding:9px 12px;border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--muted2);line-height:1.4}
+.repaso-opt.correct{background:rgba(34,197,94,.12);border-color:var(--green);color:var(--green);font-weight:500}
+.repaso-ans-box{background:var(--surface2);border-radius:8px;padding:.8rem 1rem;font-size:13px;color:var(--muted2);line-height:1.55}
+.repaso-ans-box strong{color:var(--text);display:block;margin-bottom:.3rem;font-size:14px}
+.repaso-nav{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:.5rem}
+.repaso-nav button{padding:8px 22px;border:1px solid var(--border);border-radius:8px;background:transparent;cursor:pointer;font-size:13px;color:var(--text);font-family:inherit}
+.repaso-nav button:hover{background:var(--surface2)}
+.repaso-nav button:disabled{opacity:.3;cursor:not-allowed}
+.repaso-nav .ctr{font-size:13px;color:var(--muted);min-width:60px;text-align:center}
+.repaso-btn{margin-top:.6rem;padding:6px 14px;border:1px solid var(--accent);border-radius:7px;background:rgba(59,130,246,.1);color:var(--accent);cursor:pointer;font-size:12px;font-family:inherit}
+.repaso-btn:hover{background:rgba(59,130,246,.2)}
+
 /* QUIZ */
 .quiz-setup{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:1rem}
 .quiz-setup h2{margin-bottom:1rem}
@@ -194,6 +213,30 @@ h3{font-size:14px;font-weight:600;color:var(--muted2)}
   </div>
   <div id="sub-grid-view"></div>
   <div id="sub-detail-view" style="display:none"></div>
+</div>
+
+<div id="sec-repaso" class="section">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+    <button class="back-menu" style="margin:0" onclick="showTab('resumen')">← Subelementos</button>
+    <span id="repaso-title" style="font-size:13px;color:var(--muted)"></span>
+  </div>
+  <div class="repaso-card">
+    <div class="repaso-header">
+      <span class="repaso-id" id="rep-id"></span>
+      <span class="repaso-ctr" id="rep-ctr"></span>
+    </div>
+    <div class="repaso-q" id="rep-q"></div>
+    <div class="repaso-opts" id="rep-opts"></div>
+    <div class="repaso-ans-box">
+      <strong id="rep-ans"></strong>
+      <span id="rep-exp"></span>
+    </div>
+  </div>
+  <div class="repaso-nav">
+    <button id="rep-prev" onclick="repasoMove(-1)">← Anterior</button>
+    <span class="ctr" id="rep-nav-ctr"></span>
+    <button id="rep-next" onclick="repasoMove(1)">Siguiente →</button>
+  </div>
 </div>
 
 <div id="sec-flashcard" class="section">
@@ -320,9 +363,9 @@ let fcCards=[],fcIdx=0,fcCache={};
 let quizCards=[],quizIdx=0,quizScore=0,quizErrors=[],quizSubSel='all';
 
 function showTab(t){
-  ['resumen','flashcard','quiz'].forEach((s,i)=>{
+  ['resumen','flashcard','quiz','repaso'].forEach((s,i)=>{
     document.getElementById('sec-'+s).classList.toggle('visible',s===t);
-    document.querySelectorAll('.nav button')[i].classList.toggle('active',s===t);
+    if(i<3)document.querySelectorAll('.nav button')[i].classList.toggle('active',s===t);
   });
   if(t==='flashcard'&&fcIdx===0&&fcCards.length===0)initFC();
   if(t==='quiz')initQuizSetup();
@@ -334,7 +377,7 @@ function buildGrid(){
   const d=document.createElement('div');d.className='sub-grid';
   Object.entries(SUBS).forEach(([id,s])=>{
     const c=document.createElement('div');c.className='sub-card';
-    c.innerHTML=`<div class="sub-id">${id}</div><div class="sub-name">${s.name}</div><div class="sub-meta">${s.q} preguntas de examen · ${QS.filter(q=>q.sub===id).length} en el banco</div>`;
+    c.innerHTML=`<div class="sub-id">${id}</div><div class="sub-name">${s.name}</div><div class="sub-meta">${s.q} preguntas de examen · ${QS.filter(q=>q.sub===id).length} en el banco</div><button class="repaso-btn" onclick="event.stopPropagation();startRepaso('${id}')">Repasar →</button>`;
     c.onclick=()=>showDetail(id);
     d.appendChild(c);
   });
@@ -350,6 +393,7 @@ function showDetail(id){
     <p style="margin-top:.5rem">${s.desc}</p>
     <p style="font-size:12px;color:var(--muted)">${QS.filter(q=>q.sub===id).length} preguntas en el banco · ${s.q} aparecen en el examen (35 en total)</p>
     <div class="groups">${Object.entries(s.groups).map(([gid,gdesc])=>`<div class="group-row"><h4>${gid}</h4><p>${gdesc}</p></div>`).join('')}</div>
+    <button class="repaso-btn" style="margin-top:1rem" onclick="startRepaso('${id}')">Repasar todas las preguntas →</button>
   </div>`;
 }
 function backGrid(){
@@ -458,6 +502,46 @@ function showExpl(d){
     const textoVoz=`Respuesta correcta: ${q.answer}. ${q[q.answer]}. ${d.titulo}. ${d.explicacion}`;
     speakFC(textoVoz);
   }
+}
+
+// ── REPASO ──
+let repasoCards=[],repasoIdx=0,repasoSub='';
+
+function startRepaso(subId){
+  repasoCards=QS.filter(q=>q.sub===subId);
+  repasoIdx=0;
+  repasoSub=subId;
+  document.getElementById('repaso-title').textContent=subId+' — '+SUBS[subId].name;
+  showTab('repaso');
+  renderRepaso();
+}
+
+function renderRepaso(){
+  const q=repasoCards[repasoIdx];
+  document.getElementById('rep-id').textContent=q.id+' · '+q.sub;
+  document.getElementById('rep-ctr').textContent=(repasoIdx+1)+' de '+repasoCards.length;
+  document.getElementById('rep-nav-ctr').textContent=(repasoIdx+1)+' / '+repasoCards.length;
+  document.getElementById('rep-q').textContent=q.question;
+  // Opciones con la correcta resaltada
+  const optsEl=document.getElementById('rep-opts');optsEl.innerHTML='';
+  ['A','B','C','D'].forEach(l=>{
+    if(!q[l])return;
+    const d=document.createElement('div');
+    d.className='repaso-opt'+(l===q.answer?' correct':'');
+    d.textContent=l+'. '+q[l];
+    optsEl.appendChild(d);
+  });
+  // Respuesta y explicación breve
+  document.getElementById('rep-ans').textContent='✓ Respuesta correcta: '+q.answer+'. '+q[q.answer];
+  document.getElementById('rep-exp').textContent='';
+  // Navs
+  document.getElementById('rep-prev').disabled=repasoIdx===0;
+  document.getElementById('rep-next').disabled=repasoIdx===repasoCards.length-1;
+}
+
+function repasoMove(d){
+  repasoIdx=Math.max(0,Math.min(repasoCards.length-1,repasoIdx+d));
+  renderRepaso();
 }
 
 // ── STATS ──
