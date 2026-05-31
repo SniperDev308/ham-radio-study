@@ -1252,9 +1252,18 @@ function renderHomeProgress(){
 
 // ─── INIT ─────────────────────────────────────
 renderHomeProgress();
-</script>
-</body>
-</htmlfunction buildTemasList(){
+
+// ─── ESTUDIAR POR TEMAS ───────────────────────────────────────────────────
+let temaPool=[], temaIdx=0, temaMode='rep', temaAnswers={}, temaSubmitted=false;
+let autoTemaOn=false, autoTemaTimer=null;
+let currentTema='';
+
+function goTemas(){
+  buildTemasList();
+  show('s-temas');
+}
+
+function buildTemasList(){
   const el=document.getElementById('temas-list');
   const parents={};
   for(const [tema,ids] of Object.entries(TEMAS)){
@@ -1272,10 +1281,153 @@ renderHomeProgress();
       const dash=tema.indexOf('—');
       const sub=dash>-1?tema.substring(dash+2).trim():tema;
       const temaJson=JSON.stringify(tema);
-      html+='<div onclick="startTema('+temaJson+')" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;margin-bottom:6px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:space-between;gap:10px" onmouseover="this.style.borderColor='var(--accent)';this.style.background='var(--accent-bg)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--card)'"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+sub+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+ids.length+' preguntas</div></div><span style="font-size:14px;color:var(--accent);flex-shrink:0">&#8594;</span></div>';
+      html+='<div onclick="startTema('+temaJson+')" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;margin-bottom:6px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+sub+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+ids.length+' preguntas</div></div><span style="font-size:14px;color:var(--accent);flex-shrink:0">&#8594;</span></div>';
     }
     html+='</div>';
   }
   el.innerHTML=html;
 }
->
+
+function startTema(tema){
+  currentTema=tema;
+  const ids=TEMAS[tema];
+  temaPool=ids.map(id=>QS.find(q=>q.id===id)).filter(Boolean);
+  temaIdx=0; temaAnswers={}; temaSubmitted=false;
+  setTemaMode('rep');
+  const dash=tema.indexOf('—');
+  const name=dash>-1?tema.substring(dash+2).trim():tema;
+  document.getElementById('tema-study-title').textContent=name;
+  document.getElementById('tema-study-sub').textContent=`${temaPool.length} preguntas`;
+  show('s-tema-study');
+}
+
+function setTemaMode(mode){
+  temaMode=mode;
+  temaIdx=0; temaAnswers={}; temaSubmitted=false;
+  stopSpeech(); clearTimeout(autoTemaTimer); autoTemaOn=false;
+  const b=document.getElementById('btn-auto-tema');
+  if(b){b.classList.remove('active');b.textContent='▶ Auto';}
+  ['rep','flash','quiz'].forEach(m=>{
+    const btn=document.getElementById('stm-'+m);
+    if(btn) btn.classList.toggle('active',m===mode);
+  });
+  const submitWrap=document.getElementById('tema-submit-wrap');
+  if(submitWrap) submitWrap.style.display=mode==='quiz'?'block':'none';
+  if(mode==='quiz'){
+    temaPool=[...TEMAS[currentTema]].map(id=>QS.find(q=>q.id===id)).filter(Boolean).sort(()=>Math.random()-.5);
+  }
+  renderTema();
+}
+
+function renderTema(){
+  const q=temaPool[temaIdx];
+  const total=temaPool.length;
+  document.getElementById('tema-pbar').style.width=`${((temaIdx+1)/total)*100}%`;
+  document.getElementById('tema-counter').textContent=`${temaIdx+1} / ${total}`;
+  document.getElementById('tema-ai-box').style.display='none';
+  if(temaMode==='rep'){
+    let html=`<div class="qcard">
+      <div class="qcard-top"><span class="qid">${q.id}</span></div>
+      <div class="qsub">${q.sub}</div>
+      <div class="qtext">${q.q}</div>
+      <div class="opts">`;
+    q.opts.forEach((o,i)=>{
+      html+=`<button class="opt${i===q.ans?' reveal':''}" disabled><span class="oletter">${'ABCD'[i]}</span><span>${o.replace(/^[A-D]\.\s*/,'')}</span></button>`;
+    });
+    html+='</div></div>';
+    document.getElementById('tema-content').innerHTML=html;
+  } else if(temaMode==='flash'){
+    document.getElementById('tema-content').innerHTML=`
+      <div class="fc-scene" onclick="this.querySelector('.fc-card').classList.toggle('flipped')">
+        <div class="fc-card">
+          <div class="fc-face fc-front">
+            <div style="font-size:10px;font-family:monospace;color:var(--text4);margin-bottom:8px">${q.id}</div>
+            <div style="font-size:14px;color:var(--text);line-height:1.6;text-align:center">${q.q}</div>
+            <div class="fc-hint">Toca para ver la respuesta</div>
+          </div>
+          <div class="fc-face fc-back">
+            <div style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:8px">Respuesta correcta</div>
+            <div style="font-size:15px;font-weight:600;color:var(--text);text-align:center">${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">Opción ${'ABCD'[q.ans]}</div>
+          </div>
+        </div>
+      </div>`;
+  } else if(temaMode==='quiz'){
+    let html=`<div class="qcard">
+      <div class="qcard-top"><span class="qid">${q.id}</span><span class="qcount">${temaIdx+1}/${total}</span></div>
+      <div class="qsub">${q.sub}</div>
+      <div class="qtext">${q.q}</div>
+      <div class="opts">`;
+    q.opts.forEach((o,i)=>{
+      let cls='opt';
+      if(temaSubmitted){if(i===q.ans)cls='opt reveal';else if(temaAnswers[temaIdx]===i)cls='opt wrong';}
+      const sel=temaAnswers[temaIdx]===i&&!temaSubmitted?'border-color:var(--accent);background:var(--accent-bg)':'';
+      html+=`<button class="${cls}" style="${sel}" onclick="temaPickAnswer(${i})" ${temaSubmitted?'disabled':''}><span class="oletter">${'ABCD'[i]}</span><span>${o.replace(/^[A-D]\.\s*/,'')}</span></button>`;
+    });
+    html+='</div></div>';
+    document.getElementById('tema-content').innerHTML=html;
+    const btn=document.getElementById('btn-submit-tema');
+    if(btn) btn.style.display=(temaIdx===temaPool.length-1&&!temaSubmitted)?'inline-block':'none';
+  }
+}
+
+function temaPickAnswer(idx){
+  if(temaSubmitted) return;
+  temaAnswers[temaIdx]=idx;
+  renderTema();
+}
+
+function temaNext(){
+  if(temaMode==='quiz'&&!temaSubmitted&&temaIdx===temaPool.length-1){
+    const unanswered=temaPool.filter((_,i)=>temaAnswers[i]===undefined).length;
+    if(confirm(unanswered>0?`Tienes ${unanswered} sin responder. ¿Ver resultado?`:'¿Ver resultado?')) submitTemaQuiz();
+    return;
+  }
+  if(temaIdx<temaPool.length-1){
+    temaIdx++;
+    renderTema();
+    if(autoTemaOn) speakTema(schedAutoTema);
+  }
+}
+
+function temaPrev(){if(temaIdx>0){temaIdx--;renderTema();}}
+
+function submitTemaQuiz(){
+  temaSubmitted=true;
+  renderTema();
+  const correct=temaPool.filter((q,i)=>temaAnswers[i]===q.ans).length;
+  const total=temaPool.length;
+  const pct=Math.round((correct/total)*100);
+  const pass=pct>=74;
+  document.getElementById('tema-ai-box').style.display='block';
+  document.getElementById('tema-ai-txt').innerHTML=
+    `<strong style="color:${pass?'var(--pass)':'var(--fail)'}">${pct}% (${correct}/${total})</strong> — ${pass?'¡Excelente dominio de este tema!':'Repasa las preguntas marcadas en rojo y vuelve a intentarlo.'}`;
+  speak(pass?`Mini-examen completado. ${pct} por ciento. ¡Muy bien!`:`${pct} por ciento. Repasa el tema y vuelve a intentarlo.`);
+}
+
+function speakTema(onDone){
+  const q=temaPool[temaIdx];
+  let t=temaMode==='rep'?`Pregunta ${temaIdx+1}. ${q.q} Respuesta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`:`${q.q} `;
+  if(temaMode==='quiz') q.opts.forEach((o,i)=>{t+=`Opción ${'ABCD'[i]}: ${o.replace(/^[A-D]\.\s*/,'')}. `;});
+  speakWorker(t, null, onDone);
+}
+
+function toggleAutoTema(){
+  autoTemaOn=!autoTemaOn;
+  const b=document.getElementById('btn-auto-tema');
+  b.classList.toggle('active',autoTemaOn);
+  b.textContent=autoTemaOn?'⏸ Auto':'▶ Auto';
+  if(autoTemaOn) speakTema(schedAutoTema);
+  else{clearTimeout(autoTemaTimer);stopSpeech();}
+}
+
+function schedAutoTema(){
+  clearTimeout(autoTemaTimer);
+  autoTemaTimer=setTimeout(()=>{
+    if(autoTemaOn&&temaIdx<temaPool.length-1){temaIdx++;renderTema();speakTema(schedAutoTema);}
+  },15000);
+}
+
+</script>
+</body>
+</html>
