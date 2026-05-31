@@ -288,7 +288,7 @@ select:focus{outline:none;border-color:var(--accent)}
   <div class="pbar-wrap"><div class="pbar-fill" id="fc-pbar" style="width:0%"></div></div>
   <div id="fc-content"></div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:.6rem;flex-wrap:wrap">
-    <button class="btn-speak" onclick="speakFC(null)">&#128266; Escuchar</button>
+    <button class="btn-speak" id="btn-speak-fc" onclick="speakFC()">&#128266; Escuchar</button>
     <button class="btn-auto" id="btn-auto-fc" onclick="toggleAutoFC()">&#9654; Auto</button>
   </div>
   <div class="nav2">
@@ -350,20 +350,46 @@ select:focus{outline:none;border-color:var(--accent)}
   </div>
   <div class="quiz-setup">
     <h3>Examen simulado FCC Technician</h3>
-    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;font-size:13px;color:var(--text2);margin-bottom:1rem">
+    <!-- Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:1rem">
+      <button id="tab-oficial" onclick="setQuizTab('oficial')"
+        style="flex:1;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid var(--accent);background:var(--accent-bg);color:var(--accent)">
+        ★ Examen Oficial<br><span style="font-size:10px;font-weight:400;opacity:.8">35 preguntas · distribución FCC</span>
+      </button>
+      <button id="tab-seccion" onclick="setQuizTab('seccion')"
+        style="flex:1;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid var(--border2);background:var(--card);color:var(--text3)">
+        ☰ Por Sección<br><span style="font-size:10px;font-weight:400;opacity:.8">elige categoría y grupo</span>
+      </button>
+    </div>
+    <!-- Oficial mode -->
+    <div id="qs-oficial-info" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;font-size:13px;color:var(--text2);margin-bottom:1rem">
       <div style="font-weight:600;color:var(--text);margin-bottom:.4rem">&#128221; Examen oficial FCC</div>
       <div style="font-size:12px;color:var(--text3);line-height:1.7">
-        35 preguntas seleccionadas aleatoriamente según la distribución oficial:<br>
+        35 preguntas aleatoriamente según la distribución oficial:<br>
         T1 (6) · T2 (3) · T3 (3) · T4 (2) · T5 (4) · T6 (4) · T7 (4) · T8 (4) · T9 (2) · T0 (3)<br>
         <strong style="color:var(--amber)">Necesitas ≥74% (26/35) para aprobar.</strong>
+      </div>
+    </div>
+    <!-- Seccion mode -->
+    <div id="qs-seccion-info" style="display:none;margin-bottom:1rem">
+      <div style="margin-bottom:.6rem">
+        <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px">Categoría</label>
+        <select id="qs-cat" onchange="updateQsGrp()" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-size:13px;background:var(--card);color:var(--text)"></select>
+      </div>
+      <div style="margin-bottom:.6rem">
+        <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px">Subsección (opcional)</label>
+        <select id="qs-grp" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-size:13px;background:var(--card);color:var(--text)"></select>
+      </div>
+      <div style="font-size:12px;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.65rem .9rem">
+        Se mostrarán todas las preguntas de la selección en orden aleatorio.
       </div>
     </div>
     <div class="voice-status" id="qs-voice-status">
       <div class="vdot" id="qs-vdot"></div>
       <span id="qs-voice-label">Reconocimiento de voz: di "A" "B" "C" "D" para responder</span>
     </div>
-    <button class="btn btn-accent" style="width:100%;padding:12px" onclick="startQuiz()">
-      &#9654; Comenzar examen (35 preguntas)
+    <button class="btn btn-accent" style="width:100%;padding:12px" id="btn-start-quiz" onclick="startQuizFromSetup()">
+      &#9654; Comenzar examen
     </button>
   </div>
 </div>
@@ -1021,8 +1047,7 @@ function toggleAutoRep(){
   b.textContent=autoRepOn?'⏸ Auto':'▶ Auto';
   if(autoRepOn)speakRep(schedAutoRep);else{clearTimeout(autoRepTimer);stopSpeech();}
 }
-function schedAutoRep(){clearTimeout(autoRepTimer);autoRepTimer=setTimeout(()=>{if(autoRepOn){repIdx++;if(repIdx<repPool.length){renderRepQ();speakRep(schedAutoRep);}}},15000);}
-function repNext(){if(repIdx<repPool.length-1){repIdx++;renderRepQ();if(autoRepOn)speakRep(schedAutoRep);}}
+function schedAutoRep(){clearTimeout(autoRepTimer);autoRepTimer=setTimeout(()=>{if(autoRepOn){repIdx++;if(repIdx<repPool.length){renderRepQ();speakRep(schedAutoRep);}}},5000);}
 
 // ─── FLASHCARDS ───────────────────────────────
 function buildFCFilter(){
@@ -1065,7 +1090,7 @@ function fcPrev(){if(fcIdx>0){fcIdx--;renderFC();}}
 function speakFC(onDone){
   const q=fcPool[fcIdx];
   const txt=`${q.q} Respuesta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`;
-  speakWorker(txt, null, onDone);
+  speakWorker(txt, 'btn-speak-fc', onDone);
 }
 function toggleAutoFC(){
   autoFCOn=!autoFCOn;
@@ -1074,7 +1099,7 @@ function toggleAutoFC(){
   b.textContent=autoFCOn?'⏸ Auto':'▶ Auto';
   if(autoFCOn)speakFC(schedAutoFC);else{clearTimeout(autoFCTimer);stopSpeech();}
 }
-function schedAutoFC(){clearTimeout(autoFCTimer);autoFCTimer=setTimeout(()=>{if(autoFCOn&&fcIdx<fcPool.length-1){fcIdx++;renderFC();speakFC(schedAutoFC);}},15000);}
+function schedAutoFC(){clearTimeout(autoFCTimer);autoFCTimer=setTimeout(()=>{if(autoFCOn&&fcIdx<fcPool.length-1){fcIdx++;renderFC();speakFC(schedAutoFC);}},5000);}
 
 // ─── QUIZ ─────────────────────────────────────
 function startQuiz(){
@@ -1250,6 +1275,72 @@ function renderHomeProgress(){
     </div>`;
 }
 
+
+// ─── QUIZ SETUP ────────────────────────────────
+let quizTabMode = 'oficial';
+
+function setQuizTab(mode){
+  quizTabMode = mode;
+  const tOficial = document.getElementById('tab-oficial');
+  const tSeccion = document.getElementById('tab-seccion');
+  const iOficial = document.getElementById('qs-oficial-info');
+  const iSeccion = document.getElementById('qs-seccion-info');
+  if(mode==='oficial'){
+    tOficial.style.borderColor='var(--accent)';tOficial.style.background='var(--accent-bg)';tOficial.style.color='var(--accent)';
+    tSeccion.style.borderColor='var(--border2)';tSeccion.style.background='var(--card)';tSeccion.style.color='var(--text3)';
+    iOficial.style.display='block';iSeccion.style.display='none';
+    document.getElementById('btn-start-quiz').textContent='▶ Comenzar examen (35 preguntas)';
+  } else {
+    tSeccion.style.borderColor='var(--accent)';tSeccion.style.background='var(--accent-bg)';tSeccion.style.color='var(--accent)';
+    tOficial.style.borderColor='var(--border2)';tOficial.style.background='var(--card)';tOficial.style.color='var(--text3)';
+    iOficial.style.display='none';iSeccion.style.display='block';
+    buildQsCatFilter();
+    document.getElementById('btn-start-quiz').textContent='▶ Comenzar quiz por sección';
+  }
+}
+
+function buildQsCatFilter(){
+  const cats=['Todas las categorías',...new Set(QS.map(q=>q.cat))];
+  const sel=document.getElementById('qs-cat');
+  sel.innerHTML=cats.map((c,i)=>`<option value="${i===0?'ALL':c}">${c}</option>`).join('');
+  updateQsGrp();
+}
+
+function updateQsGrp(){
+  const cat=document.getElementById('qs-cat').value;
+  const grps=cat==='ALL'?[...new Set(QS.map(q=>q.grp))]:[...new Set(QS.filter(q=>q.cat===cat).map(q=>q.grp))];
+  const sel=document.getElementById('qs-grp');
+  sel.innerHTML='<option value="ALL">Todos los grupos</option>'+grps.map(g=>{
+    const sub=QS.find(q=>q.grp===g)?.sub||g;
+    return `<option value="${g}">${g} — ${sub}</option>`;
+  }).join('');
+}
+
+function startQuizFromSetup(){
+  if(quizTabMode==='oficial'){
+    startQuiz();
+  } else {
+    const cat=document.getElementById('qs-cat').value;
+    const grp=document.getElementById('qs-grp').value;
+    startQuizSeccion(cat,grp);
+  }
+}
+
+function startQuizSeccion(cat, grp){
+  quizAnswers={};quizSubmitted=false;
+  let pool = grp!=='ALL' ? QS.filter(q=>q.grp===grp) :
+             cat!=='ALL' ? QS.filter(q=>q.cat===cat) : [...QS];
+  quizPool = pool.sort(()=>Math.random()-.5);
+  quizIdx=0;
+  renderQuizDots();
+  renderQuizQ();
+  show('s-quiz');
+  // Update title
+  document.getElementById('quiz-sub').textContent=`Pregunta 1 de ${quizPool.length}`;
+}
+
+function goQuizSetup(){stopSpeech();show('s-quiz-setup');}
+
 // ─── INIT ─────────────────────────────────────
 renderHomeProgress();
 
@@ -1273,19 +1364,33 @@ function buildTemasList(){
     parents[parent].push({tema,ids});
   }
   let html='';
+  let temaIndex=0;
   for(const [parent,subs] of Object.entries(parents)){
     const total=subs.reduce((a,s)=>a+s.ids.length,0);
     html+='<div style="margin-bottom:18px">';
-    html+='<div style="font-family:monospace;font-size:11px;color:var(--accent);letter-spacing:2px;margin-bottom:8px;padding:0 2px">'+parent+' &mdash; '+total+' preguntas</div>';
+    html+='<div style="font-family:monospace;font-size:11px;color:var(--accent);letter-spacing:2px;margin-bottom:8px;padding:0 2px">'+parent+' — '+total+' preguntas</div>';
     for(const {tema,ids} of subs){
       const dash=tema.indexOf('—');
       const sub=dash>-1?tema.substring(dash+2).trim():tema;
-      const temaJson=JSON.stringify(tema);
-      html+='<div onclick="startTema('+temaJson+')" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;margin-bottom:6px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+sub+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+ids.length+' preguntas</div></div><span style="font-size:14px;color:var(--accent);flex-shrink:0">&#8594;</span></div>';
+      html+='<div data-tema-idx="'+temaIndex+'" onclick="startTemaByIdx(this)" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;margin-bottom:6px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px">';
+      html+='<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+sub+'</div>';
+      html+='<div style="font-size:11px;color:var(--text3);margin-top:2px">'+ids.length+' preguntas</div></div>';
+      html+='<span style="font-size:14px;color:var(--accent)">→</span></div>';
+      temaIndex++;
     }
     html+='</div>';
   }
   el.innerHTML=html;
+}
+
+// Store tema keys in order for index-based lookup
+let _temaKeys=[];
+function _buildTemaKeys(){_temaKeys=Object.keys(TEMAS);}
+
+function startTemaByIdx(el){
+  if(_temaKeys.length===0)_buildTemaKeys();
+  const idx=parseInt(el.getAttribute('data-tema-idx'));
+  startTema(_temaKeys[idx]);
 }
 
 function startTema(tema){
@@ -1409,7 +1514,7 @@ function speakTema(onDone){
   const q=temaPool[temaIdx];
   let t=temaMode==='rep'?`Pregunta ${temaIdx+1}. ${q.q} Respuesta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`:`${q.q} `;
   if(temaMode==='quiz') q.opts.forEach((o,i)=>{t+=`Opción ${'ABCD'[i]}: ${o.replace(/^[A-D]\.\s*/,'')}. `;});
-  speakWorker(t, null, onDone);
+  speakWorker(t, 'btn-auto-tema', onDone);
 }
 
 function toggleAutoTema(){
