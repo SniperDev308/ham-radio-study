@@ -1073,7 +1073,7 @@ function renderRepQ(){
   document.getElementById('rep-content').innerHTML=html;
   document.getElementById('rep-ai-box').style.display='none';
 }
-function repNext(){if(repIdx<repPool.length-1){repIdx++;renderRepQ();if(autoRepOn)schedAutoRep();}}
+function repNext(){if(repIdx<repPool.length-1){repIdx++;renderRepQ();if(autoRepOn){clearTimeout(autoRepTimer);speakRep(schedAutoRep);}}}
 function repPrev(){if(repIdx>0){repIdx--;renderRepQ();}}
 function speakRep(onDone){
   const q=repPool[repIdx];
@@ -1085,9 +1085,17 @@ function toggleAutoRep(){
   const b=document.getElementById('btn-auto-rep');
   b.classList.toggle('active',autoRepOn);
   b.textContent=autoRepOn?'⏸ Auto':'▶ Auto';
-  if(autoRepOn)speakRep(schedAutoRep);else{clearTimeout(autoRepTimer);stopSpeech();}
+  if(autoRepOn) speakRep(schedAutoRep);
+  else{clearTimeout(autoRepTimer);stopSpeech();}
 }
-function schedAutoRep(){clearTimeout(autoRepTimer);autoRepTimer=setTimeout(()=>{if(autoRepOn){repIdx++;if(repIdx<repPool.length){renderRepQ();speakRep(schedAutoRep);}}},5000);}
+// Avanza 5 segundos DESPUÉS de que termina el audio
+function schedAutoRep(){
+  clearTimeout(autoRepTimer);
+  autoRepTimer=setTimeout(()=>{
+    if(!autoRepOn) return;
+    if(repIdx<repPool.length-1){repIdx++;renderRepQ();speakRep(schedAutoRep);}
+  },5000);
+}
 
 // ─── FLASHCARDS ───────────────────────────────
 function buildFCFilter(){
@@ -1125,21 +1133,58 @@ function renderFC(){
       </div>
     </div>`;
 }
-function fcNext(){if(fcIdx<fcPool.length-1){fcIdx++;renderFC();if(autoFCOn)speakFC(schedAutoFC);}}
+function fcNext(){if(fcIdx<fcPool.length-1){fcIdx++;renderFC();if(autoFCOn){clearTimeout(autoFCTimer);speakFCQuestion(schedAutoFCFlip);}}}
 function fcPrev(){if(fcIdx>0){fcIdx--;renderFC();}}
+
+// Escuchar manual — lee pregunta y respuesta seguidos
 function speakFC(onDone){
   const q=fcPool[fcIdx];
   const txt=`${q.q} Respuesta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`;
   speakWorker(txt, 'btn-speak-fc', onDone);
 }
+// Auto paso 1 — solo lee la pregunta
+function speakFCQuestion(onDone){
+  const q=fcPool[fcIdx];
+  speakWorker(q.q, null, onDone);
+}
+// Auto paso 2 — solo lee la respuesta
+function speakFCAnswer(onDone){
+  const q=fcPool[fcIdx];
+  const txt=`Respuesta correcta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`;
+  speakWorker(txt, null, onDone);
+}
+// Gira la tarjeta visualmente
+function flipFC(){
+  const card=document.querySelector('#fc-content .fc-card');
+  if(card) card.classList.add('flipped');
+}
+
 function toggleAutoFC(){
   autoFCOn=!autoFCOn;
   const b=document.getElementById('btn-auto-fc');
   b.classList.toggle('active',autoFCOn);
   b.textContent=autoFCOn?'⏸ Auto':'▶ Auto';
-  if(autoFCOn)speakFC(schedAutoFC);else{clearTimeout(autoFCTimer);stopSpeech();}
+  if(autoFCOn) speakFCQuestion(schedAutoFCFlip);
+  else{clearTimeout(autoFCTimer);stopSpeech();}
 }
-function schedAutoFC(){clearTimeout(autoFCTimer);autoFCTimer=setTimeout(()=>{if(autoFCOn&&fcIdx<fcPool.length-1){fcIdx++;renderFC();speakFC(schedAutoFC);}},5000);}
+// Después de leer pregunta → espera 5s → voltea → lee respuesta
+function schedAutoFCFlip(){
+  clearTimeout(autoFCTimer);
+  autoFCTimer=setTimeout(()=>{
+    if(!autoFCOn) return;
+    flipFC();
+    speakFCAnswer(schedAutoFCNext);
+  },5000);
+}
+// Después de leer respuesta → espera 5s → avanza tarjeta
+function schedAutoFCNext(){
+  clearTimeout(autoFCTimer);
+  autoFCTimer=setTimeout(()=>{
+    if(!autoFCOn) return;
+    if(fcIdx<fcPool.length-1){fcIdx++;renderFC();speakFCQuestion(schedAutoFCFlip);}
+    else{autoFCOn=false;const b=document.getElementById('btn-auto-fc');b.classList.remove('active');b.textContent='▶ Auto';}
+  },5000);
+}
 
 // ─── QUIZ ─────────────────────────────────────
 function startQuiz(){
@@ -1552,9 +1597,27 @@ function submitTemaQuiz(){
 
 function speakTema(onDone){
   const q=temaPool[temaIdx];
-  let t=temaMode==='rep'?`Pregunta ${temaIdx+1}. ${q.q} Respuesta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`:`${q.q} `;
-  if(temaMode==='quiz') q.opts.forEach((o,i)=>{t+=`Opción ${'ABCD'[i]}: ${o.replace(/^[A-D]\.\s*/,'')}. `;});
-  speakWorker(t, 'btn-auto-tema', onDone);
+  if(temaMode==='rep'){
+    const t=`Pregunta ${temaIdx+1}. ${q.q} Respuesta correcta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`;
+    speakWorker(t, 'btn-auto-tema', onDone);
+  } else if(temaMode==='flash'){
+    // Solo lee la pregunta — el flip y respuesta los maneja schedAutoTemaFlip
+    speakWorker(q.q, null, onDone);
+  } else {
+    let t=`Pregunta ${temaIdx+1}. ${q.q} `;
+    q.opts.forEach((o,i)=>{t+=`Opción ${'ABCD'[i]}: ${o.replace(/^[A-D]\.\s*/,'')}. `;});
+    speakWorker(t, 'btn-auto-tema', onDone);
+  }
+}
+
+function speakTemaAnswer(onDone){
+  const q=temaPool[temaIdx];
+  speakWorker(`Respuesta correcta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`, null, onDone);
+}
+
+function flipTemaFC(){
+  const card=document.querySelector('#tema-content .fc-card');
+  if(card) card.classList.add('flipped');
 }
 
 function toggleAutoTema(){
@@ -1562,15 +1625,41 @@ function toggleAutoTema(){
   const b=document.getElementById('btn-auto-tema');
   b.classList.toggle('active',autoTemaOn);
   b.textContent=autoTemaOn?'⏸ Auto':'▶ Auto';
-  if(autoTemaOn) speakTema(schedAutoTema);
-  else{clearTimeout(autoTemaTimer);stopSpeech();}
+  if(autoTemaOn){
+    if(temaMode==='flash') speakTema(schedAutoTemaFlip);
+    else speakTema(schedAutoTema);
+  } else{clearTimeout(autoTemaTimer);stopSpeech();}
 }
 
+// Repasar modo: audio termina → 5s → avanza
 function schedAutoTema(){
   clearTimeout(autoTemaTimer);
   autoTemaTimer=setTimeout(()=>{
-    if(autoTemaOn&&temaIdx<temaPool.length-1){temaIdx++;renderTema();speakTema(schedAutoTema);}
-  },15000);
+    if(!autoTemaOn) return;
+    if(temaIdx<temaPool.length-1){temaIdx++;renderTema();
+      if(temaMode==='flash') speakTema(schedAutoTemaFlip);
+      else speakTema(schedAutoTema);
+    }
+  },5000);
+}
+
+// Flash modo: pregunta termina → 5s → voltea → lee respuesta → 5s → avanza
+function schedAutoTemaFlip(){
+  clearTimeout(autoTemaTimer);
+  autoTemaTimer=setTimeout(()=>{
+    if(!autoTemaOn) return;
+    flipTemaFC();
+    speakTemaAnswer(schedAutoTemaNext);
+  },5000);
+}
+
+function schedAutoTemaNext(){
+  clearTimeout(autoTemaTimer);
+  autoTemaTimer=setTimeout(()=>{
+    if(!autoTemaOn) return;
+    if(temaIdx<temaPool.length-1){temaIdx++;renderTema();speakTema(schedAutoTemaFlip);}
+    else{autoTemaOn=false;const b=document.getElementById('btn-auto-tema');b.classList.remove('active');b.textContent='▶ Auto';}
+  },5000);
 }
 
 </script>
