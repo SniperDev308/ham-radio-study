@@ -977,54 +977,61 @@ function updateMicBtn(){const b=document.getElementById('btn-mic-q');if(!b)retur
 // ─── REPASAR ─────────────────────────────────
 function buildSectionBrowser(){
   const cats=[...new Set(QS.map(q=>q.cat))];
-  let html='';
-  let catIdx=0;
-  cats.forEach(cat=>{
+  window._secCats=cats;
+  const el=document.getElementById('section-browser');
+  el.innerHTML='';
+  cats.forEach((cat,catIdx)=>{
     const grps=[...new Set(QS.filter(q=>q.cat===cat).map(q=>q.grp))];
     const totalCat=QS.filter(q=>q.cat===cat).length;
     const catLabel=cat.split('—')[1]?.trim()||cat;
     const catCode=cat.split('—')[0].trim();
-    html+='<div class="grp-card" id="gc-'+catIdx+'">';
-    html+='<div class="grp-header" onclick="toggleGrp(\'gc-'+catIdx+'\')">';
-    html+='<div class="grp-left">';
-    html+='<div class="grp-code">'+catCode+'</div>';
-    html+='<div class="grp-info"><div class="grp-name">'+catLabel+'</div>';
-    html+='<div class="grp-pills-row"><span class="pill pill-blue">'+totalCat+' preguntas</span></div></div></div>';
-    html+='<span class="chevron">▼</span></div>';
-    html+='<div class="grp-body">';
-    html+='<div class="sub-row" data-cat="'+catIdx+'" data-grp="" onclick="startStudyByIdx(this)">';
-    html+='<div class="sub-row-left"><div class="sub-num">✦</div>';
-    html+='<div class="sub-info"><div class="sub-name">Todas las secciones de '+catCode+'</div>';
-    html+='<div class="sub-code-label">'+totalCat+' preguntas</div></div></div>';
-    html+='<div class="sub-right"><span style="font-size:14px;color:var(--accent)">→</span></div></div>';
-    let grpIdx=0;
+
+    // Card container
+    const card=document.createElement('div');
+    card.className='grp-card';
+    card.id='gc-'+catIdx;
+
+    // Header — clickable to expand
+    const hdr=document.createElement('div');
+    hdr.className='grp-header';
+    hdr.innerHTML='<div class="grp-left"><div class="grp-code">'+catCode+'</div>'
+      +'<div class="grp-info"><div class="grp-name">'+catLabel+'</div>'
+      +'<div class="grp-pills-row"><span class="pill pill-blue">'+totalCat+' preguntas</span></div>'
+      +'</div></div><span class="chevron">▼</span>';
+    hdr.addEventListener('click',()=>card.classList.toggle('open'));
+
+    // Body
+    const body=document.createElement('div');
+    body.className='grp-body';
+
+    // "All" row
+    const allRow=document.createElement('div');
+    allRow.className='sub-row';
+    allRow.innerHTML='<div class="sub-row-left"><div class="sub-num">✦</div>'
+      +'<div class="sub-info"><div class="sub-name">Todas las secciones de '+catCode+'</div>'
+      +'<div class="sub-code-label">'+totalCat+' preguntas</div></div></div>'
+      +'<div class="sub-right"><span style="font-size:14px;color:var(--accent)">→</span></div>';
+    allRow.addEventListener('click',()=>startStudy(cat,null));
+    body.appendChild(allRow);
+
+    // Group rows
     grps.forEach(grp=>{
       const qs=QS.filter(q=>q.grp===grp);
       const sub=qs[0]?.sub||grp;
-      html+='<div class="sub-row" data-cat="'+catIdx+'" data-grp="'+grp+'" onclick="startStudyByIdx(this)">';
-      html+='<div class="sub-row-left"><div class="sub-num" style="font-size:9px">'+grp+'</div>';
-      html+='<div class="sub-info"><div class="sub-name">'+sub+'</div>';
-      html+='<div class="sub-code-label">'+qs.length+' preguntas</div></div></div>';
-      html+='<div class="sub-right"><span style="font-size:14px;color:var(--accent)">→</span></div></div>';
-      grpIdx++;
+      const row=document.createElement('div');
+      row.className='sub-row';
+      row.innerHTML='<div class="sub-row-left"><div class="sub-num" style="font-size:9px">'+grp+'</div>'
+        +'<div class="sub-info"><div class="sub-name">'+sub+'</div>'
+        +'<div class="sub-code-label">'+qs.length+' preguntas</div></div></div>'
+        +'<div class="sub-right"><span style="font-size:14px;color:var(--accent)">→</span></div>';
+      row.addEventListener('click',()=>startStudy(cat,grp));
+      body.appendChild(row);
     });
-    html+='</div></div>';
-    catIdx++;
+
+    card.appendChild(hdr);
+    card.appendChild(body);
+    el.appendChild(card);
   });
-  document.getElementById('section-browser').innerHTML=html;
-  // Store cat list for index lookup
-  window._secCats=cats;
-}
-
-function toggleGrp(id){
-  document.getElementById(id).classList.toggle('open');
-}
-
-function startStudyByIdx(el){
-  const catIdx=parseInt(el.getAttribute('data-cat'));
-  const grp=el.getAttribute('data-grp');
-  const cat=window._secCats[catIdx];
-  startStudy(cat, grp||null);
 }
 function startStudy(cat,grp){
   repPool=grp?QS.filter(q=>q.grp===grp):(cat==='ALL'?[...QS]:QS.filter(q=>q.cat===cat));
