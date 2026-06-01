@@ -904,7 +904,12 @@ function toggleTheme(){
 // ─── SCREENS ─────────────────────────────────
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
 function goHome(){stopSpeech();stopMic();show('s-home');renderHomeProgress();}
-function goRepasar(){buildSectionBrowser();show('s-repasar');}
+function goRepasar(){
+  console.log('goRepasar called, QS length:', QS.length);
+  buildSectionBrowser();
+  show('s-repasar');
+  console.log('section-browser innerHTML length:', document.getElementById('section-browser').children.length);
+}
 function goFlash(){buildFCFilter();show('s-flash');}
 function goQuizSetup(){stopSpeech();show('s-quiz-setup');}
 
@@ -1034,7 +1039,9 @@ function buildSectionBrowser(){
   });
 }
 function startStudy(cat,grp){
+  console.log('startStudy called, cat:', cat, 'grp:', grp);
   repPool=grp?QS.filter(q=>q.grp===grp):(cat==='ALL'?[...QS]:QS.filter(q=>q.cat===cat));
+  console.log('repPool length:', repPool.length);
   repIdx=0;
   document.getElementById('study-title').textContent=grp?`Sección ${grp}`:(cat==='ALL'?'Todo el banco':cat);
   document.getElementById('study-sub').textContent=`${repPool.length} preguntas`;
