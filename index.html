@@ -255,14 +255,8 @@ select:focus{outline:none;border-color:var(--accent)}
   </div>
   <div class="pbar-wrap"><div class="pbar-fill" id="rep-pbar" style="width:0%"></div></div>
   <div id="rep-content"></div>
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:.6rem;flex-wrap:wrap">
-    <button class="btn-speak" id="btn-speak-rep" onclick="speakRep()">&#128266; Escuchar</button>
-    <button class="btn btn-accent" id="btn-explain-rep" onclick="explainRep()" style="padding:7px 14px;font-size:12px">&#128161; Explicar</button>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:.6rem">
     <button class="btn-auto" id="btn-auto-rep" onclick="toggleAutoRep()">&#9654; Auto</button>
-  </div>
-  <div class="aibox" id="rep-ai-box" style="display:none">
-    <div class="aihdr">&#129302; INSTRUCTOR IA</div>
-    <div class="aitxt" id="rep-ai-txt"></div>
   </div>
   <div class="nav2">
     <button class="btn" onclick="repPrev()">&#8592; Anterior</button>
@@ -287,8 +281,7 @@ select:focus{outline:none;border-color:var(--accent)}
   </div>
   <div class="pbar-wrap"><div class="pbar-fill" id="fc-pbar" style="width:0%"></div></div>
   <div id="fc-content"></div>
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:.6rem;flex-wrap:wrap">
-    <button class="btn-speak" id="btn-speak-fc" onclick="speakFC()">&#128266; Escuchar</button>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:.6rem">
     <button class="btn-auto" id="btn-auto-fc" onclick="toggleAutoFC()">&#9654; Auto</button>
   </div>
   <div class="nav2">
@@ -324,8 +317,7 @@ select:focus{outline:none;border-color:var(--accent)}
   </div>
   <div class="pbar-wrap"><div class="pbar-fill" id="tema-pbar" style="width:0%"></div></div>
   <div id="tema-content"></div>
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:.6rem;flex-wrap:wrap" id="tema-voice-bar">
-    <button class="btn-speak" onclick="speakTema()">&#128266; Escuchar</button>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:.6rem" id="tema-voice-bar">
     <button class="btn-auto" id="btn-auto-tema" onclick="toggleAutoTema()">&#9654; Auto</button>
   </div>
   <div class="aibox" id="tema-ai-box" style="display:none">
@@ -958,21 +950,6 @@ function speakWorker(text, btnId, onDone){
   });
 }
 
-function explainRep(){
-  const q=repPool[repIdx];
-  const btn=document.getElementById('btn-explain-rep');
-  const box=document.getElementById('rep-ai-box');
-  const txt=document.getElementById('rep-ai-txt');
-  if(!q||!btn) return;
-  btn.disabled=true; btn.textContent='⏳ Explicando...';
-  box.style.display='block';
-  txt.textContent='Consultando instructor IA...';
-  const prompt=`Eres un instructor de radioafición. Explica brevemente (2-3 oraciones) por qué la respuesta correcta es correcta:\n\nPregunta: ${q.q}\nRespuesta correcta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}\n\nSé conciso y claro.`;
-  fetch(WORKER_URL+'/explain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})})
-  .then(r=>r.ok?r.json():Promise.reject('error'))
-  .then(data=>{txt.textContent=data.text||'Sin respuesta.';btn.disabled=false;btn.innerHTML='💡 Explicar';})
-  .catch(()=>{txt.textContent='No se pudo conectar con el instructor IA.';btn.disabled=false;btn.innerHTML='💡 Explicar';});
-}
 
 // ─── MIC ─────────────────────────────────────
 function toggleMic(){micOn?stopMic():startMic();}
