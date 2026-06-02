@@ -904,12 +904,7 @@ function toggleTheme(){
 // ─── SCREENS ─────────────────────────────────
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
 function goHome(){stopSpeech();stopMic();show('s-home');renderHomeProgress();}
-function goRepasar(){
-  console.log('goRepasar called, QS length:', QS.length);
-  buildSectionBrowser();
-  show('s-repasar');
-  console.log('section-browser innerHTML length:', document.getElementById('section-browser').children.length);
-}
+function goRepasar(){buildSectionBrowser();show('s-repasar');}
 function goFlash(){buildFCFilter();show('s-flash');}
 function goQuizSetup(){stopSpeech();show('s-quiz-setup');}
 
@@ -1039,9 +1034,7 @@ function buildSectionBrowser(){
   });
 }
 function startStudy(cat,grp){
-  console.log('startStudy called, cat:', cat, 'grp:', grp);
   repPool=grp?QS.filter(q=>q.grp===grp):(cat==='ALL'?[...QS]:QS.filter(q=>q.cat===cat));
-  console.log('repPool length:', repPool.length);
   repIdx=0;
   document.getElementById('study-title').textContent=grp?`Sección ${grp}`:(cat==='ALL'?'Todo el banco':cat);
   document.getElementById('study-sub').textContent=`${repPool.length} preguntas`;
@@ -1061,19 +1054,17 @@ function renderRepQ(){
     <div class="opts">`;
   q.opts.forEach((o,i)=>{
     const isAns=i===q.ans;
-    const cls=isAns?'opt reveal':'opt';
-    html+=`<button class="${cls}" disabled><span class="oletter">${'ABCD'[i]}</span><span>${o.replace(/^[A-D]\.\s*/,'')}</span></button>`;
+    html+=`<button class="${isAns?'opt reveal':'opt'}" disabled><span class="oletter">${'ABCD'[i]}</span><span>${o.replace(/^[A-D]\.\s*/,'')}</span></button>`;
   });
   html+='</div></div>';
   document.getElementById('rep-content').innerHTML=html;
-  document.getElementById('rep-ai-box').style.display='none';
 }
 function repNext(){if(repIdx<repPool.length-1){repIdx++;renderRepQ();if(autoRepOn){clearTimeout(autoRepTimer);speakRep(schedAutoRep);}}}
 function repPrev(){if(repIdx>0){repIdx--;renderRepQ();}}
 function speakRep(onDone){
   const q=repPool[repIdx];
   const t=`Pregunta ${repIdx+1}. ${q.q} La respuesta correcta es: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`;
-  speakWorker(t, 'btn-speak-rep', onDone);
+  speakWorker(t, null, onDone);
 }
 function toggleAutoRep(){
   autoRepOn=!autoRepOn;
@@ -1135,7 +1126,7 @@ function fcPrev(){if(fcIdx>0){fcIdx--;renderFC();}}
 function speakFC(onDone){
   const q=fcPool[fcIdx];
   const txt=`${q.q} Respuesta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`;
-  speakWorker(txt, 'btn-speak-fc', onDone);
+  speakWorker(txt, null, onDone);
 }
 // Auto paso 1 — solo lee la pregunta
 function speakFCQuestion(onDone){
