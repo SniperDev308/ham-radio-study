@@ -265,6 +265,20 @@ select:focus{outline:none;border-color:var(--accent)}
   </div>
 </div>
 
+<!-- FIN DE SECCIÓN MODAL -->
+<div id="s-end-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:1.6rem 1.4rem;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.25)">
+    <div style="font-size:36px;margin-bottom:.6rem" id="end-emoji">🎉</div>
+    <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:.4rem" id="end-title">¡Sección completada!</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:1.4rem" id="end-sub"></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-accent" style="width:100%;padding:12px" onclick="endModalRepeat()">🔁 Repetir esta sección</button>
+      <button class="btn" style="width:100%;padding:12px" id="end-btn-next" onclick="endModalNext()">⏭ Siguiente sección</button>
+      <button class="btn" style="width:100%;padding:12px;background:var(--bg3)" onclick="endModalHome()">🏠 Ir al inicio</button>
+    </div>
+  </div>
+</div>
+
 <!-- FLASHCARDS -->
 <div id="s-flash" class="screen">
   <div class="screen-header">
@@ -1059,7 +1073,14 @@ function renderRepQ(){
   html+='</div></div>';
   document.getElementById('rep-content').innerHTML=html;
 }
-function repNext(){if(repIdx<repPool.length-1){repIdx++;renderRepQ();if(autoRepOn){clearTimeout(autoRepTimer);speakRep(schedAutoRep);}}}
+function repNext(){
+  if(repIdx<repPool.length-1){
+    repIdx++;renderRepQ();
+    if(autoRepOn){clearTimeout(autoRepTimer);speakRep(schedAutoRep);}
+  } else {
+    showEndModal('rep');
+  }
+}
 function repPrev(){if(repIdx>0){repIdx--;renderRepQ();}}
 function speakRep(onDone){
   const q=repPool[repIdx];
@@ -1074,16 +1095,117 @@ function toggleAutoRep(){
   if(autoRepOn) speakRep(schedAutoRep);
   else{clearTimeout(autoRepTimer);stopSpeech();}
 }
-// Avanza 5 segundos DESPUÉS de que termina el audio
 function schedAutoRep(){
   clearTimeout(autoRepTimer);
   autoRepTimer=setTimeout(()=>{
     if(!autoRepOn) return;
     if(repIdx<repPool.length-1){repIdx++;renderRepQ();speakRep(schedAutoRep);}
+    else{showEndModal('rep');}
   },5000);
 }
 
-// ─── FLASHCARDS ───────────────────────────────
+// ─── FIN DE SECCIÓN ───────────────────────────
+let _endMode='rep'; // 'rep' or 'fc'
+
+function showEndModal(mode){
+  _endMode=mode;
+  stopSpeech();
+  clearTimeout(autoRepTimer);
+  clearTimeout(autoFCTimer);
+  autoRepOn=false; autoFCOn=false;
+  const b1=document.getElementById('btn-auto-rep');
+  const b2=document.getElementById('btn-auto-fc');
+  if(b1){b1.classList.remove('active');b1.textContent='▶ Auto';}
+  if(b2){b2.classList.remove('active');b2.textContent='▶ Auto';}
+
+  // Check if there's a next section available
+  const pool=mode==='rep'?repPool:fcPool;
+  const total=pool.length;
+  const title=mode==='rep'
+    ?document.getElementById('study-title').textContent
+    :document.getElementById('fc-filter').options[document.getElementById('fc-filter').selectedIndex]?.text||'esta sección';
+
+  document.getElementById('end-title').textContent='¡Sección completada!';
+  document.getElementById('end-sub').textContent=`Repasaste ${total} preguntas de "${title}"`;
+
+  // Check if next section exists
+  const hasNext=_getNextSection(mode)!==null;
+  const btnNext=document.getElementById('end-btn-next');
+  btnNext.style.display=hasNext?'block':'none';
+
+  const modal=document.getElementById('s-end-modal');
+  modal.style.display='flex';
+  speak('Sección completada. ¿Deseas repetir o pasar a la siguiente sección?');
+}
+
+function hideEndModal(){
+  document.getElementById('s-end-modal').style.display='none';
+}
+
+function endModalRepeat(){
+  hideEndModal();
+  if(_endMode==='rep'){
+    repIdx=0; renderRepQ();
+  } else {
+    fcIdx=0; renderFC();
+  }
+}
+
+function endModalNext(){
+  hideEndModal();
+  const next=_getNextSection(_endMode);
+  if(!next) return;
+  if(_endMode==='rep'){
+    startStudy(next.cat, next.grp);
+  } else {
+    // For flashcards, change the filter to next category
+    const sel=document.getElementById('fc-filter');
+    for(let i=0;i<sel.options.length;i++){
+      if(sel.options[i].value===next.cat){sel.selectedIndex=i;break;}
+    }
+    fcApplyFilter();
+  }
+}
+
+function endModalHome(){
+  hideEndModal();
+  goHome();
+}
+
+// Get the next logical section after current repPool/fcPool
+function _getNextSection(mode){
+  if(mode==='rep'){
+    // Find current cat in QS
+    const curCat=repPool[0]?.cat;
+    const curGrp=repPool[0]?.grp;
+    const allCats=[...new Set(QS.map(q=>q.cat))];
+    const allGrps=[...new Set(QS.map(q=>q.grp))];
+    // If we're studying a specific grp, go to next grp in same cat
+    if(repPool.length < QS.filter(q=>q.cat===curCat).length){
+      // studying a sub-group
+      const grpsInCat=[...new Set(QS.filter(q=>q.cat===curCat).map(q=>q.grp))];
+      const curGrpIdx=grpsInCat.indexOf(curGrp);
+      if(curGrpIdx<grpsInCat.length-1) return {cat:curCat,grp:grpsInCat[curGrpIdx+1]};
+      // else go to next cat
+      const curCatIdx=allCats.indexOf(curCat);
+      if(curCatIdx<allCats.length-1) return {cat:allCats[curCatIdx+1],grp:null};
+      return null;
+    } else {
+      // studying whole cat — go to next cat
+      const curCatIdx=allCats.indexOf(curCat);
+      if(curCatIdx<allCats.length-1) return {cat:allCats[curCatIdx+1],grp:null};
+      return null;
+    }
+  }
+  // For flashcards just return next cat
+  const allCats=[...new Set(QS.map(q=>q.cat))];
+  const curCat=fcPool[0]?.cat;
+  const idx=allCats.indexOf(curCat);
+  if(idx<allCats.length-1) return {cat:allCats[idx+1],grp:null};
+  return null;
+}
+
+
 function buildFCFilter(){
   const cats=['Todas las categorías',...new Set(QS.map(q=>q.cat))];
   const sel=document.getElementById('fc-filter');
@@ -1119,7 +1241,14 @@ function renderFC(){
       </div>
     </div>`;
 }
-function fcNext(){if(fcIdx<fcPool.length-1){fcIdx++;renderFC();if(autoFCOn){clearTimeout(autoFCTimer);speakFCQuestion(schedAutoFCFlip);}}}
+function fcNext(){
+  if(fcIdx<fcPool.length-1){
+    fcIdx++;renderFC();
+    if(autoFCOn){clearTimeout(autoFCTimer);speakFCQuestion(schedAutoFCFlip);}
+  } else {
+    showEndModal('fc');
+  }
+}
 function fcPrev(){if(fcIdx>0){fcIdx--;renderFC();}}
 
 // Escuchar manual — lee pregunta y respuesta seguidos
@@ -1168,7 +1297,7 @@ function schedAutoFCNext(){
   autoFCTimer=setTimeout(()=>{
     if(!autoFCOn) return;
     if(fcIdx<fcPool.length-1){fcIdx++;renderFC();speakFCQuestion(schedAutoFCFlip);}
-    else{autoFCOn=false;const b=document.getElementById('btn-auto-fc');b.classList.remove('active');b.textContent='▶ Auto';}
+    else{showEndModal('fc');}
   },5000);
 }
 
