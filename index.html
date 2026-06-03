@@ -1713,7 +1713,12 @@ function temaNext(){
   if(temaIdx<temaPool.length-1){
     temaIdx++;
     renderTema();
-    if(autoTemaOn) speakTema(schedAutoTema);
+    if(autoTemaOn){
+      if(temaMode==='flash') speakTema(schedAutoTemaFlip);
+      else speakTema(schedAutoTema);
+    }
+  } else if(temaMode!=='quiz'){
+    showEndModalTema();
   }
 }
 
@@ -1736,14 +1741,13 @@ function speakTema(onDone){
   const q=temaPool[temaIdx];
   if(temaMode==='rep'){
     const t=`Pregunta ${temaIdx+1}. ${q.q} Respuesta correcta: ${q.opts[q.ans].replace(/^[A-D]\.\s*/,'')}.`;
-    speakWorker(t, 'btn-auto-tema', onDone);
+    speakWorker(t, null, onDone);
   } else if(temaMode==='flash'){
-    // Solo lee la pregunta — el flip y respuesta los maneja schedAutoTemaFlip
     speakWorker(q.q, null, onDone);
   } else {
     let t=`Pregunta ${temaIdx+1}. ${q.q} `;
     q.opts.forEach((o,i)=>{t+=`Opción ${'ABCD'[i]}: ${o.replace(/^[A-D]\.\s*/,'')}. `;});
-    speakWorker(t, 'btn-auto-tema', onDone);
+    speakWorker(t, null, onDone);
   }
 }
 
@@ -1768,19 +1772,22 @@ function toggleAutoTema(){
   } else{clearTimeout(autoTemaTimer);stopSpeech();}
 }
 
-// Repasar modo: audio termina → 5s → avanza
+// Repasar: audio termina → 5s → avanza
 function schedAutoTema(){
   clearTimeout(autoTemaTimer);
   autoTemaTimer=setTimeout(()=>{
     if(!autoTemaOn) return;
-    if(temaIdx<temaPool.length-1){temaIdx++;renderTema();
+    if(temaIdx<temaPool.length-1){
+      temaIdx++;renderTema();
       if(temaMode==='flash') speakTema(schedAutoTemaFlip);
       else speakTema(schedAutoTema);
+    } else {
+      showEndModalTema();
     }
   },5000);
 }
 
-// Flash modo: pregunta termina → 5s → voltea → lee respuesta → 5s → avanza
+// Flash: pregunta termina → 5s → voltea → lee respuesta
 function schedAutoTemaFlip(){
   clearTimeout(autoTemaTimer);
   autoTemaTimer=setTimeout(()=>{
@@ -1790,13 +1797,51 @@ function schedAutoTemaFlip(){
   },5000);
 }
 
+// Flash: respuesta termina → 5s → avanza
 function schedAutoTemaNext(){
   clearTimeout(autoTemaTimer);
   autoTemaTimer=setTimeout(()=>{
     if(!autoTemaOn) return;
-    if(temaIdx<temaPool.length-1){temaIdx++;renderTema();speakTema(schedAutoTemaFlip);}
-    else{autoTemaOn=false;const b=document.getElementById('btn-auto-tema');b.classList.remove('active');b.textContent='▶ Auto';}
+    if(temaIdx<temaPool.length-1){
+      temaIdx++;renderTema();speakTema(schedAutoTemaFlip);
+    } else {
+      showEndModalTema();
+    }
   },5000);
+}
+
+// ─── FIN DE TEMA ──────────────────────────────
+function showEndModalTema(){
+  stopSpeech();
+  clearTimeout(autoTemaTimer);
+  autoTemaOn=false;
+  const b=document.getElementById('btn-auto-tema');
+  if(b){b.classList.remove('active');b.textContent='▶ Auto';}
+
+  const dash=currentTema.indexOf('—');
+  const name=dash>-1?currentTema.substring(dash+2).trim():currentTema;
+  const temaKeysList=Object.keys(TEMAS);
+  const curIdx=temaKeysList.indexOf(currentTema);
+  const hasNext=curIdx<temaKeysList.length-1;
+
+  document.getElementById('end-title').textContent='¡Tema completado!';
+  document.getElementById('end-sub').textContent=`Completaste "${name}" en modo ${temaMode==='rep'?'Repasar':'Flashcards'}`;
+  document.getElementById('end-btn-next').style.display=hasNext?'block':'none';
+  document.getElementById('end-btn-next').onclick=()=>{
+    hideEndModal();
+    startTema(temaKeysList[curIdx+1]);
+  };
+  // Override repeat button for temas
+  document.querySelector('#s-end-modal button.btn.btn-accent').onclick=()=>{
+    hideEndModal();
+    temaIdx=0;
+    if(temaMode==='flash'){
+      temaPool=[...TEMAS[currentTema]].map(id=>QS.find(q=>q.id===id)).filter(Boolean);
+    }
+    renderTema();
+  };
+  document.getElementById('s-end-modal').style.display='flex';
+  speak('Tema completado. ¿Deseas repetir o pasar al siguiente tema?');
 }
 
 </script>
