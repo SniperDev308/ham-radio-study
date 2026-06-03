@@ -285,8 +285,15 @@ select:focus{outline:none;border-color:var(--accent)}
     <button class="back-btn" onclick="goHome()">&#8592; Inicio</button>
     <div><div class="screen-title">Flashcards</div><div class="screen-sub" id="fc-sub-label">Tarjetas de memoria</div></div>
   </div>
-  <div style="margin-bottom:.6rem">
-    <select id="fc-filter" onchange="fcFilterChange()"></select>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:.6rem">
+    <div>
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Categoría</label>
+      <select id="fc-filter" onchange="fcCatChange()" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-size:13px;background:var(--card);color:var(--text)"></select>
+    </div>
+    <div>
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Subsección</label>
+      <select id="fc-grp-filter" onchange="fcApplyFilter()" style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-size:13px;background:var(--card);color:var(--text)"></select>
+    </div>
   </div>
   <div style="margin-bottom:.75rem">
     <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text3);cursor:pointer">
@@ -1210,14 +1217,29 @@ function buildFCFilter(){
   const cats=['Todas las categorías',...new Set(QS.map(q=>q.cat))];
   const sel=document.getElementById('fc-filter');
   sel.innerHTML=cats.map((c,i)=>`<option value="${i===0?'ALL':c}">${c}</option>`).join('');
-  fcApplyFilter();
+  fcBuildGrpFilter();
 }
-function fcFilterChange(){fcApplyFilter();}
+function fcCatChange(){fcBuildGrpFilter();fcApplyFilter();}
+function fcBuildGrpFilter(){
+  const cat=document.getElementById('fc-filter').value;
+  const grps=cat==='ALL'
+    ?[...new Set(QS.map(q=>q.grp))]
+    :[...new Set(QS.filter(q=>q.cat===cat).map(q=>q.grp))];
+  const sel=document.getElementById('fc-grp-filter');
+  sel.innerHTML='<option value="ALL">Todas las subsecciones</option>'
+    +grps.map(g=>{
+      const sub=QS.find(q=>q.grp===g)?.sub||g;
+      return `<option value="${g}">${g} — ${sub}</option>`;
+    }).join('');
+}
+function fcFilterChange(){fcCatChange();}
 function fcApplyFilter(){
   const cat=document.getElementById('fc-filter').value;
+  const grp=document.getElementById('fc-grp-filter').value;
   const mix=document.getElementById('fc-mix').checked;
-  fcPool=cat==='ALL'?[...QS]:QS.filter(q=>q.cat===cat);
-  if(mix)fcPool=fcPool.sort(()=>Math.random()-.5);
+  let pool=grp!=='ALL'?QS.filter(q=>q.grp===grp):cat==='ALL'?[...QS]:QS.filter(q=>q.cat===cat);
+  if(mix)pool=pool.sort(()=>Math.random()-.5);
+  fcPool=pool;
   fcIdx=0;renderFC();
 }
 function renderFC(){
